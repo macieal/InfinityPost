@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>InfinityPost</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa7b2;--accent:#6ee7b7}
+    *{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071020 0%,#071427 100%);color:#e6eef6;padding:24px;display:flex;align-items:flex-start;justify-content:center}
+    .container{width:100%;max-width:900px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{margin:0;font-size:24px}
+    button{background:var(--accent);border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
+    .posts{display:flex;flex-direction:column;gap:12px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    .meta{font-size:13px;color:var(--muted);margin-bottom:8px}
+    .topic{font-weight:600;margin:0 0 8px 0}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center}
+    .modal{background:var(--card);padding:16px;border-radius:10px;min-width:320px;max-width:520px;border:1px solid rgba(255,255,255,0.04)}
+    label{display:block;margin:8px 0 6px 0;font-size:13px;color:var(--muted)}
+    input,select,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .row{display:flex;gap:8px}
+    .error{color:#ff8b8b;font-size:13px;margin-top:6px}
+
+    /* comments */
+    .comments{margin-top:10px;padding-left:8px;border-left:2px solid rgba(255,255,255,0.02)}
+    .comment{margin-top:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.01)}
+    .comment .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .reply-btn{background:transparent;border:0;color:var(--accent);cursor:pointer;font-size:13px;padding:4px}
+
+    .small{font-size:12px;color:var(--muted)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:520px){.modal{width:92%}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>InfinityPost</h1>
+      <div>
+        <button id="createBtn">Criar Post</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="posts" class="posts"></div>
+    </main>
+
+    <footer class="small">Observação: o frontend tenta usar a API do servidor. Se ainda não configurado, o app roda em modo demo local (apenas para testes).</footer>
+  </div>
+
+  <!-- Modal novo post -->
+  <div id="modal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Novo Post</h3>
+      <label>Nickname</label>
+      <input id="postNick" placeholder="seu nick" />
+
+      <label>Assunto</label>
+      <select id="postTopic">
+        <option value="">-- escolha um assunto --</option>
+        <option value="Tecnologia">Tecnologia</option>
+        <option value="Jogos">Jogos</option>
+        <option value="Arte">Arte</option>
+        <option value="Off-topic">Off-topic</option>
+      </select>
+
+      <label>Conteúdo</label>
+      <textarea id="postContent" rows="4" placeholder="Escreva aqui..."></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+        <button id="cancelPost">Cancelar</button>
+        <button id="submitPost">Postar</button>
+      </div>
+      <p id="postError" class="error" style="display:none"></p>
+    </div>
+  </div>
+
+  <!-- Template de comentário (gerado em JS) -->
+
+  <script>
+    // ======== CONFIGURAÇÃO ========
+    // Endpoints esperados quando você for rodar no Render (implemente no backend):
+    // GET  /api/posts           -> retorna lista de posts com comments
+    // POST /api/posts           -> cria post {nick, topic, content, ip}
+    // POST /api/validate-nick   -> {nick, ip} -> {allowed: true/false}
+    // POST /api/comments        -> cria comentário {postId, parentId|null, nick, content, ip}
+    // Quando backend não existir, o frontend cai em modo demo (localStorage)
+
+    const API_BASE = '/api'; // substituir se necessário
+    const DEMO_KEY = 'infinitypost_demo_v1';
+
+    // ======== utilidades ========
+    async function getPublicIP(){
+      // tenta descobrir IP público (pode falhar em localhost). Em produção, o backend deve retornar o IP real.
+      if(localStorage.getItem('infinity_ip')) return localStorage.getItem('infinity_ip');
+      try{
+        const res = await fetch('https://api.ipify.org?format=json');
+        if(!res.ok) throw new Error('no ip');
+        const j = await res.json();
+        localStorage.setItem('infinity_ip', j.ip);
+        return j.ip;
+      }catch(e){
+        // fallback para modo demo: usar um id por navegador (não é um IP real)
+        let sid = localStorage.getItem('infinity_session') || Math.random().toString(36).slice(2,9);
+        localStorage.setItem('infinity_session', sid);
+        const fake = 'local-' + sid;
+        localStorage.setItem('infinity_ip', fake);
+        return fake;
+      }
+    }
+
+    async function apiFetch(path, opts){
+      try{
+        const res = await fetch(API_BASE + path, opts);
+        if(!res.ok) throw new Error('api-fail');
+        return await res.json();
+      }catch(e){
+        // indica falha para o chamador e permite fallback
+        throw e;
+      }
+    }
+
+    // ======== Modo demo em localStorage ========
+    function loadDemo(){
+      const raw = localStorage.getItem(DEMO_KEY);
+      return raw ? JSON.parse(raw) : {posts:[], usedNicks:{}};
+    }
+    function saveDemo(data){ localStorage.setItem(DEMO_KEY, JSON.stringify(data)); }
+
+    // ======== state ========
+    let STATE = {posts:[], usedNicks:{}}; // usado apenas em demo mode
+    let IS_DEMO = false;
+    let currentIP = null;
+
+    // ======== Inicialização ========
+    (async function init(){
+      currentIP = await getPublicIP();
+      // tenta buscar posts do backend; se falhar, usa demo
+      try{
+        const posts = await apiFetch('/posts');
+        STATE.posts = posts;
+        IS_DEMO = false;
+      }catch(e){
+        // modo demo
+        console.warn('Backend indisponível — iniciando em demo local');
+        STATE = loadDemo();
+        IS_DEMO = true;
+      }
+      renderPosts();
+    })();
+
+    // ======== Renderização ========
+    const postsEl = document.getElementById('posts');
+
+    function renderPosts(){
+      postsEl.innerHTML = '';
+      if(STATE.posts.length === 0){
+        postsEl.innerHTML = '<p class="small">Nenhum post ainda. Seja o primeiro!</p>';
+        return;
+      }
+      STATE.posts.forEach(post => {
+        const card = document.createElement('div'); card.className='card';
+        const topic = document.createElement('h3'); topic.className='topic'; topic.textContent = post.topic;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = `por ${post.nick} · ${new Date(post.createdAt||Date.now()).toLocaleString()}`;
+        const content = document.createElement('div'); content.textContent = post.content || '';
+
+        card.appendChild(topic); card.appendChild(meta); card.appendChild(content);
+
+        // area de comentarios
+        const commentsWrap = document.createElement('div'); commentsWrap.className='comments';
+        if(post.comments && post.comments.length){
+          const tree = buildCommentTree(post.comments);
+          tree.forEach(node => commentsWrap.appendChild(renderCommentNode(node, post)));
+        }
+        // caixa de comentário principal (para comentar no post)
+        const cb = createCommentBox(post.id, null);
+        commentsWrap.appendChild(cb);
+
+        card.appendChild(commentsWrap);
+        postsEl.appendChild(card);
+      });
+    }
+
+    // monta arvore de comentarios a partir de lista plana
+    function buildCommentTree(comments){
+      const map = {}; const roots = [];
+      comments.forEach(c => { c.children = []; map[c.id] = c; });
+      comments.forEach(c => { if(c.parentId){ if(map[c.parentId]) map[c.parentId].children.push(c); else roots.push(c); } else roots.push(c); });
+      return roots;
+    }
+
+    function renderCommentNode(node, post){
+      const el = document.createElement('div'); el.className='comment';
+      const meta = document.createElement('div'); meta.className='meta'; meta.textContent = `${node.nick} · ${new Date(node.createdAt||Date.now()).toLocaleString()}`;
+      const body = document.createElement('div'); body.textContent = node.content;
+      el.appendChild(meta); el.appendChild(body);
+
+      // actions
+      const actions = document.createElement('div'); actions.style.marginTop='6px';
+      const replyBtn = document.createElement('button'); replyBtn.className='reply-btn'; replyBtn.textContent='Responder';
+      replyBtn.onclick = ()=>{
+        // ao clicar cria um box de resposta abaixo
+        if(el.querySelector('.reply-box')) return; // já aberto
+        const box = createCommentBox(post.id, node.id);
+        box.classList.add('reply-box');
+        el.appendChild(box);
+      };
+      actions.appendChild(replyBtn);
+      el.appendChild(actions);
+
+      // children
+      if(node.children && node.children.length){
+        const childWrap = document.createElement('div'); childWrap.className='comments'; childWrap.style.marginTop='8px';
+        node.children.forEach(c=> childWrap.appendChild(renderCommentNode(c, post)));
+        el.appendChild(childWrap);
+      }
+
+      return el;
+    }
+
+    // cria caixa de comentário (para postId e parentId opcional)
+    function createCommentBox(postId, parentId){
+      const wrap = document.createElement('div'); wrap.style.marginTop='8px';
+      wrap.innerHTML = `
+        <input class="c-nick" placeholder="seu nick" />
+        <textarea class="c-content" rows="2" placeholder="Escreva um comentário..."></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button class="c-cancel">Cancelar</button>
+          <button class="c-send">Enviar</button>
+        </div>
+        <p class="c-error error" style="display:none"></p>
+      `;
+      const nickEl = wrap.querySelector('.c-nick');
+      const contentEl = wrap.querySelector('.c-content');
+      const cancelBtn = wrap.querySelector('.c-cancel');
+      const sendBtn = wrap.querySelector('.c-send');
+      const err = wrap.querySelector('.c-error');
+
+      cancelBtn.onclick = ()=>{ wrap.remove(); };
+      sendBtn.onclick = async ()=>{
+        const nick = nickEl.value.trim();
+        const content = contentEl.value.trim();
+        if(!nick || !content){ err.style.display='block'; err.textContent='Preencha nick e comentário'; return; }
+        err.style.display='none';
+        // validar nick contra IP (mesma regra das postagens)
+        try{
+          const allowed = await validateNickForIP(nick, currentIP);
+          if(!allowed){ err.style.display='block'; err.textContent='Este nick está sendo usado por outro IP.'; return; }
+
+          // enviar comentário
+          const newComment = { postId, parentId: parentId || null, nick, content, createdAt: Date.now() };
+
+          if(IS_DEMO){
+            // inserir em STATE
+            const post = STATE.posts.find(p=>p.id===postId);
+            if(!post.comments) post.comments = [];
+            newComment.id = 'c'+Math.random().toString(36).slice(2,9);
+            post.comments.push(newComment);
+            // marcar nick usado neste IP
+            STATE.usedNicks[nick] = currentIP;
+            saveDemo(STATE);
+            renderPosts();
+            return;
+          }
+
+          // backend mode
+          await apiFetch('/comments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newComment)});
+          // refazer fetch de posts para atualizar
+          const posts = await apiFetch('/posts'); STATE.posts = posts; renderPosts();
+
+        }catch(e){
+          console.error(e);
+          err.style.display='block'; err.textContent='Erro ao validar/enviar. (modo demo ativado se backend offline)';
+        }
+      };
+
+      return wrap;
+    }
+
+    // valida se nick pode ser usado por este IP
+    async function validateNickForIP(nick, ip){
+      // tenta backend
+      try{
+        const res = await apiFetch('/validate-nick',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick, ip})});
+        return !!res.allowed;
+      }catch(e){
+        // fallback para demo: checar STATE.usedNicks
+        const used = STATE.usedNicks[nick];
+        if(!used) return true;
+        return used === ip;
+      }
+    }
+
+    // ======== criar post ========
+    document.getElementById('createBtn').addEventListener('click', ()=>{ document.getElementById('modal').style.display='flex'; });
+    document.getElementById('cancelPost').addEventListener('click', ()=>{ document.getElementById('modal').style.display='none'; });
+
+    document.getElementById('submitPost').addEventListener('click', async ()=>{
+      const nick = document.getElementById('postNick').value.trim();
+      const topic = document.getElementById('postTopic').value;
+      const content = document.getElementById('postContent').value.trim();
+      const errEl = document.getElementById('postError'); errEl.style.display='none';
+      if(!nick || !topic || !content){ errEl.style.display='block'; errEl.textContent='Preencha todos os campos'; return; }
+
+      try{
+        const allowed = await validateNickForIP(nick, currentIP);
+        if(!allowed){ errEl.style.display='block'; errEl.textContent='Este nick já foi usado por outro IP.'; return; }
+
+        const payload = { nick, topic, content, ip: currentIP, createdAt: Date.now() };
+        if(IS_DEMO){
+          payload.id = 'p'+Math.random().toString(36).slice(2,9);
+          payload.comments = [];
+          STATE.posts.unshift(payload);
+          STATE.usedNicks[nick] = currentIP;
+          saveDemo(STATE);
+          document.getElementById('modal').style.display='none';
+          renderPosts();
+          return;
+        }
+
+        await apiFetch('/posts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const posts = await apiFetch('/posts'); STATE.posts = posts; renderPosts();
+        document.getElementById('modal').style.display='none';
+
+      }catch(e){
+        console.error(e);
+        errEl.style.display='block'; errEl.textContent='Erro ao criar post (backend indisponível)';
+      }
+    });
+
+    // ======== helpers dev ========
+    // função para popular demo com posts iniciais (apenas para testes)
+    window._seedDemo = function(){
+      STATE.posts = [
+        { id:'p1', nick:'maciel', topic:'Jogos', content:'Fala galera, alguem jogando?', createdAt:Date.now()-1000*60*60, comments:[
+          {id:'c1', parentId:null, nick:'amigo', content:'To sim!', createdAt:Date.now()-1000*60*50},
+          {id:'c2', parentId:'c1', nick:'maciel', content:'Bora uma partida?', createdAt:Date.now()-1000*60*40}
+        ] }
+      ];
+      STATE.usedNicks = { maciel: currentIP, amigo: 'local-xyz' };
+      saveDemo(STATE); renderPosts();
+    };
+  </script>
+</body>
+</html>
