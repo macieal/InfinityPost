@@ -1,55 +1,33 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>InfinityPost</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>InfinityPost</h1>
-      <link rel="shortcut icon" href="post_24dp_000000_FILL0_wght400_GRAD0_opsz24.png" type="image/x-icon">
-      <div class="header-actions">
-        <button id="createBtn" class="btn primary">Criar Post</button>
-      </div>
-    </header>
+    <h1>InfinityPost</h1>
+    <link rel="shortcut icon" href="post_24dp_000000_FILL0_wght400_GRAD0_opsz24.png" type="image/x-icon">
 
-    <main>
-      <div id="posts" class="posts"></div>
-    </main>
+    <button id="btn-new">Criar Post</button>
 
-    <footer class="small">Modo demo: se não houver backend, o app salva no navegador. Para dados permanentes use backend (já incluso).</footer>
+    <div id="post-list"></div>
   </div>
 
   <!-- Modal -->
-  <div id="modal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal">
-      <h3>Novo Post</h3>
-      <label>Nickname</label>
-      <input id="postNick" placeholder="seu nick" />
-
-      <label>Assunto</label>
-      <select id="postTopic">
-        <option value="">-- escolha um assunto --</option>
-        <option value="Tecnologia">Tecnologia</option>
-        <option value="Jogos">Jogos</option>
-        <option value="Arte">Arte</option>
-        <option value="Off-topic">Off-topic</option>
-      </select>
-
-      <label>Conteúdo</label>
-      <textarea id="postContent" rows="4" placeholder="Escreva aqui..."></textarea>
-
-      <div class="modal-actions">
-        <button id="cancelPost" class="btn">Cancelar</button>
-        <button id="submitPost" class="btn primary">Postar</button>
-      </div>
-      <p id="postError" class="error" style="display:none"></p>
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Novo Post</h2>
+      <input id="nick" placeholder="Seu nick" />
+      <input id="topic" placeholder="Assunto" />
+      <textarea id="text" placeholder="Texto..."></textarea>
+      <button id="save">Salvar</button>
+      <button id="close">Fechar</button>
     </div>
   </div>
-
+  
   <script src="script.js"></script>
 </body>
 </html>
