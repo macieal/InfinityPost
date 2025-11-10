@@ -1,23 +1,56 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Posts</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfinityPost</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="container">
+    <h1>InfinityPost</h1>
+    <p class="notice">⚠️ Todos os posts são apagados após <b>24 horas</b>.</p>
 
-    <h1>Infinity Post</h1>
-    <p>Seus posts expiram depois de 24 horas ✅</p>
+    <div class="controls">
+      <button id="btn-new" class="btn primary">Criar Post</button>
+      <select id="filterTopic">
+        <option value="">Todos os assuntos</option>
+      </select>
+    </div>
 
-    <input id="nick" placeholder="Seu nick"><br>
-    <input id="topic" placeholder="Título"><br>
-    <textarea id="text" placeholder="Conteúdo"></textarea><br>
-    <button onclick="sendPost()">Enviar</button>
+    <div id="post-list"></div>
+  </div>
 
-    <h2>Posts</h2>
-    <div id="posts"></div>
+  <!-- Modal Post -->
+  <div id="modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content">
+      <h2>Novo Post</h2>
+      <p class="notice-sm">O post será apagado após 24h.</p>
+      <input id="nick" placeholder="Seu nick" />
+      <input id="topic" placeholder="Assunto" />
+      <textarea id="text" placeholder="Texto..."></textarea>
+      <div class="modal-actions">
+        <button id="save" class="btn primary">Salvar</button>
+        <button id="close" class="btn">Fechar</button>
+      </div>
+      <p id="postError" class="error" style="display:none"></p>
+    </div>
+  </div>
 
-    <script src="/index.js"></script>
+  <!-- Modal Comentário -->
+  <div id="modal-comment" class="modal hidden" aria-hidden="true">
+    <div class="modal-content">
+      <h2>Comentar</h2>
+      <input id="commentNick" placeholder="Seu nick" />
+      <textarea id="commentText" placeholder="Comentário..."></textarea>
+      <div class="modal-actions">
+        <button id="commentSave" class="btn primary">Enviar</button>
+        <button id="commentClose" class="btn">Fechar</button>
+      </div>
+      <p id="commentError" class="error" style="display:none"></p>
+    </div>
+  </div>
+
+  <script src="script.js" defer></script>
 </body>
 </html>
