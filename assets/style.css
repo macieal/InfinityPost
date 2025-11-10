@@ -1,3 +1,4 @@
+/* mesmo estilo anterior */
 :root{--bg:#071427;--card:#0b1220;--muted:#9aa7b2;--accent:#6ee7b7}
 *{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
 body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071020,#071427);color:#e6eef6;padding:28px;display:flex;align-items:flex-start;justify-content:center}
