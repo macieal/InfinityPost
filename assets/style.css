@@ -1,0 +1,26 @@
+body {
+    background: #111;
+    color: #eee;
+    font-family: Arial;
+    padding: 20px;
+}
+
+input, textarea {
+    width: 300px;
+    margin: 4px;
+    padding: 6px;
+}
+
+button {
+    padding: 8px 15px;
+    background: #09f;
+    border: none;
+    color: white;
+}
+
+.post {
+    border: 1px solid #444;
+    padding: 10px;
+    margin-top: 10px;
+    background: #222;
+}
