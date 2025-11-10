@@ -1,26 +1,58 @@
 body {
-    background: #111;
-    color: #eee;
-    font-family: Arial;
-    padding: 20px;
+  background: #111;
+  color: #fff;
+  font-family: Arial;
 }
 
-input, textarea {
-    width: 300px;
-    margin: 4px;
-    padding: 6px;
+/* POSTS CONTAINER */
+#posts {
+  margin: 20px 0;
 }
 
+/* BOTÃO */
 button {
-    padding: 8px 15px;
-    background: #09f;
-    border: none;
-    color: white;
+  background: #008cff;
+  border: none;
+  padding: 8px 13px;
+  color: #fff;
+  cursor: pointer;
 }
 
-.post {
-    border: 1px solid #444;
-    padding: 10px;
-    margin-top: 10px;
-    background: #222;
+/* ✅ MODAL */
+#modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ✅ CAIXA */
+#modal-content {
+  background: #222;
+  padding: 20px;
+  width: 400px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* X */
+.close-btn {
+  width: 30px;
+  height: 30px;
+  align-self: flex-end;
+  background: red;
+}
+
+/* Campos */
+input, textarea {
+  width: 100%;
+  padding: 6px;
 }

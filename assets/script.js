@@ -1,78 +1,53 @@
-const postList = document.getElementById("post-list");
-const btnNew = document.getElementById("btn-new");
-const filterTopic = document.getElementById("filterTopic");
 const modal = document.getElementById("modal");
-const saveBtn = document.getElementById("save");
-const closeBtn = document.getElementById("close");
-const modalC = document.getElementById("modal-comment");
-const cSaveBtn = document.getElementById("commentSave");
-const cCloseBtn = document.getElementById("commentClose");
+const openBtn = document.getElementById("openModalBtn");
+const closeBtn = document.getElementById("closeModalBtn");
+const saveBtn = document.getElementById("savePostBtn");
+const postsDiv = document.getElementById("posts");
 
-let currentPostId = null;
+// Abrir modal
+openBtn.onclick = () => {
+    modal.classList.remove("hidden");
+};
 
-function loadPosts(){
-  cleanupExpired();
-  const posts = JSON.parse(localStorage.getItem("posts") || "[]");
-  renderPosts(posts);
-}
+// Fechar modal
+closeBtn.onclick = () => {
+    modal.classList.add("hidden");
+};
 
-function cleanupExpired(){
-  let posts = JSON.parse(localStorage.getItem("posts") || "[]");
-  const now = Date.now();
-  posts = posts.filter(p => now - p.created < 86400000);
-  localStorage.setItem("posts", JSON.stringify(posts));
-}
+// Salvar post
+saveBtn.onclick = async () => {
+    const nick = document.getElementById("nick").value;
+    const topic = document.getElementById("topic").value;
+    const text = document.getElementById("text").value;
 
-function savePost(post){
-  let posts = JSON.parse(localStorage.getItem("posts") || "[]");
-  posts.unshift(post);
-  localStorage.setItem("posts", JSON.stringify(posts));
-}
+    if (!nick || !topic || !text) {
+        alert("Preencha tudo!");
+        return;
+    }
 
-function renderPosts(posts){
-  postList.innerHTML = "";
-  posts.forEach((p, index)=>{
+    // ✅ Mostra no site (somente exibição)
+    addPost({ nick, topic, text });
+
+    // ✅ FECHA MODAL
+    modal.classList.add("hidden");
+
+    // ✅ Aqui você chama o backend
+    /*
+    await fetch("/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nick, topic, text })
+    });
+    */
+};
+
+// Exibir post
+function addPost(data) {
     const div = document.createElement("div");
-    div.className = "card";
     div.innerHTML = `
-      <div class="meta">${p.nick} — ${p.topic}</div>
-      <div class="content">${p.text}</div>
-      <button class="btn" onclick="openComment(${index})">Comentar</button>
-      <div class="comments">${p.comments.map(c=>`<div class='comment'><b>${c.nick}</b>: ${c.text}</div>`).join("")}</div>
+        <p><b>${data.topic}</b> — ${data.nick}</p>
+        <p>${data.text}</p>
+        <hr>
     `;
-    postList.appendChild(div);
-  });
+    postsDiv.prepend(div);
 }
-
-btnNew.onclick = ()=> modal.classList.remove("hidden");
-closeBtn.onclick = ()=> modal.classList.add("hidden");
-
-saveBtn.onclick = ()=>{
-  const nick = document.getElementById("nick").value;
-  const topic = document.getElementById("topic").value;
-  const text = document.getElementById("text").value;
-  if(!nick || !topic || !text) return;
-  savePost({ nick, topic, text, comments:[], created:Date.now() });
-  modal.classList.add("hidden");
-  loadPosts();
-};
-
-function openComment(idx){
-  currentPostId = idx;
-  modalC.classList.remove("hidden");
-}
-
-cCloseBtn.onclick = ()=> modalC.classList.add("hidden");
-
-cSaveBtn.onclick = ()=>{
-  const nick = document.getElementById("commentNick").value;
-  const text = document.getElementById("commentText").value;
-  if(!nick || !text) return;
-  let posts = JSON.parse(localStorage.getItem("posts") || "[]");
-  posts[currentPostId].comments.push({ nick, text });
-  localStorage.setItem("posts", JSON.stringify(posts));
-  modalC.classList.add("hidden");
-  loadPosts();
-};
-
-loadPosts();
