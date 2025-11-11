@@ -1,148 +1,96 @@
-// script.js - versão corrigida: modal inicia fechado, botão fechar funciona, comentários funcionam e proteção contra spam
-document.addEventListener('DOMContentLoaded', () => {
-  const postList = document.getElementById("post-list");
-  const btnNew = document.getElementById("btn-new");
-  const filterTopic = document.getElementById("filterTopic");
-  const modal = document.getElementById("modal");
-  const saveBtn = document.getElementById("save");
-  const closeBtn = document.getElementById("close");
-  const modalC = document.getElementById("modal-comment");
-  const cSaveBtn = document.getElementById("commentSave");
-  const cCloseBtn = document.getElementById("commentClose");
+const postList = document.getElementById("post-list");
+const btnNew = document.getElementById("btn-new");
+const filterTopic = document.getElementById("filterTopic");
+const modal = document.getElementById("modal");
+const modalC = document.getElementById("modal-comment");
+const saveBtn = document.getElementById("save");
+const closeBtn = document.getElementById("close");
+const cSaveBtn = document.getElementById("commentSave");
+const cCloseBtn = document.getElementById("commentClose");
 
-  let currentPostId = null;
-  let lastPostTime = 0; // anti-spam
-  const MIN_POST_INTERVAL = 2000; // 2s between clicks
-  const DUPLICATE_BLOCK_MS = 30 * 1000; // bloqueia posts idênticos por 30s
+let currentPostId = null;
+const EXPIRATION = 86400000;
 
-  // inicializa modais fechados
-  modal.classList.add('hidden');
-  modalC.classList.add('hidden');
+function getPosts(){return JSON.parse(localStorage.getItem("posts")||"[]")}
+function setPosts(p){localStorage.setItem("posts",JSON.stringify(p))}
 
-  function loadPosts(){
-    cleanupExpired();
-    const posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    renderPosts(posts);
-  }
+function cleanup(){
+  const now = Date.now();
+  setPosts(getPosts().filter(p=>now-p.created < EXPIRATION));
+}
 
-  function cleanupExpired(){
-    let posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    const now = Date.now();
-    posts = posts.filter(p => now - p.created < 86400000);
-    localStorage.setItem("posts", JSON.stringify(posts));
-  }
+function render(posts){
+  postList.innerHTML = "";
+  posts.forEach((p,i)=>{
+    const card = document.createElement("div");
+    card.className="card";
 
-  function savePost(post){
-    let posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    posts.unshift(post);
-    localStorage.setItem("posts", JSON.stringify(posts));
-  }
+    card.innerHTML = `
+      <div class="meta">${p.nick} — ${p.topic}</div>
+      <div class="content">${escape(p.text)}</div>
+      <button class="btn" data-id="${i}">Comentar</button>
+      <div class="comments"></div>
+    `;
 
-  function renderPosts(posts){
-    postList.innerHTML = "";
-    posts.forEach((p, index)=>{
-      p.comments = p.comments || [];
-      const div = document.createElement("div");
-      div.className = "card";
-
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.textContent = `${p.nick} — ${p.topic}`;
-
-      const content = document.createElement('div');
-      content.className = 'content';
-      content.textContent = p.text;
-
-      const commentBtn = document.createElement('button');
-      commentBtn.className = 'btn';
-      commentBtn.textContent = 'Comentar';
-      commentBtn.addEventListener('click', () => openComment(index));
-
-      const commentsWrap = document.createElement('div');
-      commentsWrap.className = 'comments';
-      p.comments.forEach(c => {
-        const cDiv = document.createElement('div');
-        cDiv.className = 'comment';
-        cDiv.innerHTML = `<b>${escapeHtml(c.nick)}</b>: ${escapeHtml(c.text)}`;
-        commentsWrap.appendChild(cDiv);
-      });
-
-      div.appendChild(meta);
-      div.appendChild(content);
-      div.appendChild(commentBtn);
-      div.appendChild(commentsWrap);
-      postList.appendChild(div);
+    const commentsWrap = card.querySelector('.comments');
+    p.comments.forEach(c=>{
+      const el=document.createElement('div');
+      el.className='comment';
+      el.innerHTML = `<b>${escape(c.nick)}</b>: ${escape(c.text)}`;
+      commentsWrap.appendChild(el);
     });
-  }
 
-  function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]; }); }
+    card.querySelector('button').onclick = ()=>openComment(i);
+    postList.appendChild(card);
+  })
+}
 
-  // eventos modal criar
-  btnNew.addEventListener('click', ()=> modal.classList.remove('hidden'));
-  closeBtn.addEventListener('click', ()=> modal.classList.add('hidden'));
+function escape(s){return String(s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]))}
 
-  saveBtn.addEventListener('click', ()=>{
-    const nick = document.getElementById("nick").value.trim();
-    const topic = document.getElementById("topic").value.trim();
-    const text = document.getElementById("text").value.trim();
-    if(!nick || !topic || !text) return alert('Preencha todos os campos');
+function load(){cleanup();render(getPosts());updateTopics();}
 
-    const now = Date.now();
-    if(now - lastPostTime < MIN_POST_INTERVAL) return alert('Aguarde um instante antes de postar novamente');
+function updateTopics(){
+  const topics=[...new Set(getPosts().map(p=>p.topic))];
+  filterTopic.innerHTML = `<option value="">Todos</option>` + topics.map(t=>`<option>${t}</option>`).join("");
+}
 
-    // checar duplicate recente
-    const posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    const recentSame = posts.find(p => p.nick === nick && p.topic === topic && p.text === text && (now - p.created) < DUPLICATE_BLOCK_MS);
-    if(recentSame) return alert('Você acabou de publicar um post igual. Espere um pouco.');
+btnNew.onclick=()=>modal.classList.remove("hidden");
+closeBtn.onclick=()=>modal.classList.add("hidden");
 
-    lastPostTime = now;
-    savePost({ nick, topic, text, comments:[], created: now });
-    modal.classList.add('hidden');
-    // limpa campos
-    document.getElementById("nick").value = '';
-    document.getElementById("topic").value = '';
-    document.getElementById("text").value = '';
-    loadPosts();
-  });
+saveBtn.onclick=()=>{
+  const nick=document.getElementById("nick").value.trim();
+  const topic=document.getElementById("topic").value.trim();
+  const text=document.getElementById("text").value.trim();
+  if(!nick||!topic||!text)return alert("Preencha tudo!");
+  const posts=getPosts();
+  posts.unshift({nick,topic,text,comments:[],created:Date.now()});
+  setPosts(posts);
+  modal.classList.add("hidden");
+  load();
+}
 
-  // comentários
-  function openComment(idx){
-    currentPostId = idx;
-    // preenche nick se possível
-    const posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    const existing = posts[idx];
-    if(existing && existing.lastCommentNick) document.getElementById('commentNick').value = existing.lastCommentNick;
-    else document.getElementById('commentNick').value = '';
-    document.getElementById('commentText').value = '';
-    modalC.classList.remove('hidden');
-  }
+function openComment(i){
+  currentPostId=i;
+  modalC.classList.remove("hidden");
+}
 
-  cCloseBtn.addEventListener('click', ()=> modalC.classList.add('hidden'));
+cCloseBtn.onclick=()=>modalC.classList.add("hidden");
 
-  cSaveBtn.addEventListener('click', ()=>{
-    const nick = document.getElementById('commentNick').value.trim();
-    const text = document.getElementById('commentText').value.trim();
-    if(!nick || !text) return alert('Preencha nick e comentário');
+cSaveBtn.onclick=()=>{
+  const nick=document.getElementById('commentNick').value.trim();
+  const text=document.getElementById('commentText').value.trim();
+  if(!nick||!text)return alert("Preencha tudo!");
+  const posts=getPosts();
+  posts[currentPostId].comments.push({nick,text});
+  setPosts(posts);
+  modalC.classList.add("hidden");
+  load();
+}
 
-    let posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    if(typeof currentPostId !== 'number' || !posts[currentPostId]) return alert('Post inválido');
+filterTopic.onchange=()=>{
+  const t=filterTopic.value;
+  const p=getPosts();
+  render(t? p.filter(x=>x.topic===t):p);
+}
 
-    posts[currentPostId].comments = posts[currentPostId].comments || [];
-    posts[currentPostId].comments.push({ nick, text });
-    posts[currentPostId].lastCommentNick = nick;
-    localStorage.setItem('posts', JSON.stringify(posts));
-
-    modalC.classList.add('hidden');
-    loadPosts();
-  });
-
-  filterTopic.addEventListener('change', ()=>{
-    const topic = filterTopic.value;
-    const posts = JSON.parse(localStorage.getItem("posts") || "[]");
-    const filtered = topic ? posts.filter(p=>p.topic === topic) : posts;
-    renderPosts(filtered);
-  });
-
-  // inicializar
-  loadPosts();
-});
+load();
