@@ -1,0 +1,19 @@
+body{ background-color: rgb(0, 0, 66); color: white; font-family: Verdana, Geneva, Tahoma, sans-serif; }
+.container{
+    text-align: center;
+    border-radius: 5px;
+    background: #000000;
+    font-size: 15px;
+}
+*{
+    margin: 20px;
+}
+.posts{
+    background-color: rgb(10, 10, 90);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+.perfil{
+    display: flex;
+}
